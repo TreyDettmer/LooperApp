@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.Networking;
+using System.IO;
 using System;
 
 public class Station : MonoBehaviour
@@ -63,6 +65,12 @@ public class Station : MonoBehaviour
 
     public List<Looper> loopers = new List<Looper>();
 
+    public GameObject loadSessionMenu;
+    public RectTransform savedFolderContent;
+    public GameObject savedSessionPrefab;
+
+    
+
     /// <summary>
     /// Initialize singleton
     /// </summary>
@@ -98,6 +106,7 @@ public class Station : MonoBehaviour
             }
         }
         running = true;
+        loadSessionMenu.SetActive(false);
     }
 
     private void Update()
@@ -148,12 +157,41 @@ public class Station : MonoBehaviour
 
     public void ChangeBPM()
     {
+        string currentBPM = ((int)bpm).ToString();
         int tempBPM;
 
         int.TryParse(bpmInputField.text,System.Globalization.NumberStyles.Integer,null, out tempBPM);
         if (tempBPM > 0)
         {
-            bpm = tempBPM;
+            if (tempBPM >= 40 && tempBPM <= 150)
+            {
+                bpm = tempBPM;
+                timeBetweenDownBeats = (60 * signatureHi) / bpm;
+                nextDownBeatTime = AudioSettings.dspTime + 2.0f;
+                nextUpBeatTime = nextDownBeatTime;
+                beatCount = 0;
+                foreach (Looper looper in loopers)
+                {
+                    looper.UpdatedBPM();
+                }
+            }
+            else
+            {
+                bpmInputField.text = currentBPM;
+            }
+        }
+        else
+        {
+            bpmInputField.text = currentBPM;
+        }
+
+    }
+
+    public void ChangeBPM(double newBPM)
+    {
+        if (newBPM != bpm)
+        {
+            bpm = newBPM;
             timeBetweenDownBeats = (60 * signatureHi) / bpm;
             nextDownBeatTime = AudioSettings.dspTime + 2.0f;
             nextUpBeatTime = nextDownBeatTime;
@@ -162,8 +200,8 @@ public class Station : MonoBehaviour
             {
                 looper.UpdatedBPM();
             }
+            bpmInputField.text = ((int)bpm).ToString();
         }
-
     }
 
     public void SetMetronome()
@@ -247,56 +285,192 @@ public class Station : MonoBehaviour
         if (loopers.Count < 5)
         {
             Looper newLooper = Instantiate(looperPrefab, backgroundPanel).GetComponent<Looper>();
+            newLooper.trackName = "LooperTrack0" + (loopers.Count + 1).ToString();
+            newLooper.SetTrackName();
             loopers.Add(newLooper);
         }
     }
 
 
-    ///// <summary>
-    ///// Generates metronome beeps
-    ///// </summary>
-    ///// <param name="data">audio data</param>
-    ///// <param name="channels">number of channels of audio</param>
-    //void OnAudioFilterRead(float[] data, int channels)
-    //{
-    //    if (!running)
-    //        return;
+    public void SaveData()
+    {
 
-    //    double samplesPerTick = sampleRate * 60.0F / bpm * 4.0F / signatureLo;
-    //    double sample = AudioSettings.dspTime * sampleRate;
-    //    int dataLen = data.Length / channels;
-        
-    //    int n = 0;
-    //    while (n < dataLen)
-    //    {
-    //        float x = gain * amp * Mathf.Sin(phase);
-    //        int i = 0;
-    //        while (i < channels)
-    //        {
-    //            data[n * channels + i] += x;
-    //            i++;
-    //        }
+        //create save folder
+        if (loopers.Count == 0 || bRecordingALoop) { return; }
+        string date = $"{DateTime.Now.Month}_{DateTime.Now.Day}_{DateTime.Now.Year}_{DateTime.Now.Hour},{DateTime.Now.Minute},{DateTime.Now.Second}";
+        string savedLoopsFolderPath = Application.persistentDataPath + "/SavedLoops";
+        //create the saved loops folder if it does not exist
+        if (!File.Exists(savedLoopsFolderPath))
+        {
+            Directory.CreateDirectory(savedLoopsFolderPath);
+        }
+        string saveFolderPath = $"{savedLoopsFolderPath}/{date}";
+        Directory.CreateDirectory(saveFolderPath);
+
+
+
+
+        //write bpm info
+        string infoFilePath = saveFolderPath + "/info.txt";
+        if (!File.Exists(infoFilePath))
+        {
+            File.WriteAllText(infoFilePath, "");
+        }
+        File.AppendAllText(infoFilePath, ((int)bpm).ToString() + "\n");
+        for (int i = 0; i < loopers.Count; i++)
+        {
+            if (loopers[i].bHasClip)
+            {
+                string looperInfo = loopers[i].trackName + "::" + ((int)loopers[i].recordedBPM).ToString() + ";;" + ((int)loopers[i].numberOfMeasures).ToString() + "\n";
+                File.AppendAllText(infoFilePath, looperInfo);
+            }
+        }
+
+        for (int i = 0; i < loopers.Count; i++)
+        {
+            if (loopers[i].bHasClip)
+            {
+                AudioClip clip = loopers[i].GetComponent<AudioSource>().clip;
+                string path = saveFolderPath + "/" + loopers[i].trackName + ".wav";
+                SavWav.Save(path, clip);
+            }
             
-    //        while (sample + n >= nextTick)
-    //        {
-    //            nextTick += samplesPerTick;
-    //            amp = 1.0F;
-    //            if (++accent > signatureHi)
-    //            {
-    //                nextDownBeatTime = AudioSettings.dspTime + 4 * (60 / bpm);
-    //                previousDownBeatTime = nextDownBeatTime - 4 * (60 / bpm);
-    //                //Debug.Log($"Current Time: {AudioSettings.dspTime} Beat Time: {previousDownBeatTime}");
-    //                Debug.Log($"Current Beat: {previousDownBeatTime}  Next Beat: {nextDownBeatTime}");
-    //                accent = 1;
-    //                amp *= 2.0F;
-    //            }
-                
-    //            //Debug.Log("Tick: " + accent + "/" + signatureHi);
-    //        }
-    //        phase += amp * 0.3F;
-    //        amp *= 0.993F;
-    //        n++;
-    //    }
-    //}
+        }
+        
+        
 
+    }
+
+
+    public void LoadData()
+    {
+        DisableLoadSessionMenu();
+        string savedLoopsFolderPath = Application.persistentDataPath + "/SavedLoops";
+
+        //return if there are no saved files
+        if (!Directory.Exists(savedLoopsFolderPath)) { return; }
+        RefreshSavedFolderContent();
+        loadSessionMenu.SetActive(true);
+
+    }
+
+    public void RefreshSavedFolderContent()
+    {
+        string savedLoopsFolderPath = Application.persistentDataPath + "/SavedLoops";
+        foreach (Transform child in savedFolderContent)
+        {
+            Destroy(child.gameObject);
+        }
+        loadSessionMenu.SetActive(true);
+        try
+        {
+            string[] dir = Directory.GetDirectories(savedLoopsFolderPath);
+            for (int i = 0; i < dir.Length; i++)
+            {
+                GameObject savedSession = Instantiate(savedSessionPrefab, savedFolderContent);
+                savedSession.GetComponentInChildren<TextMeshProUGUI>().text = dir[i].Substring(dir[i].LastIndexOf("\\") + 1);
+                int value = i;
+                savedSession.GetComponent<Button>().onClick.AddListener(delegate { LoadPreviousSession(value); });
+            }
+
+        }
+        catch (Exception e)
+        {
+            Debug.Log(e.Message);
+        }
+    }
+
+    public void LoadPreviousSession(int sessionIndex)
+    {
+        string savedLoopsFolderPath = Application.persistentDataPath + "/SavedLoops";
+        if (!Directory.Exists(savedLoopsFolderPath)) {
+            DisableLoadSessionMenu();
+            return; 
+        }
+        try
+        {
+            string[] dir = Directory.GetDirectories(savedLoopsFolderPath);
+            if (sessionIndex < dir.Length)
+            {
+                if (!Directory.Exists(dir[sessionIndex]))
+                {
+                    return;
+                }
+                foreach (Looper looper in loopers)
+                {
+                    looper.ClearLoop();
+                    Destroy(looper.gameObject);
+                }
+                loopers.Clear();
+                StreamReader sr = new StreamReader(dir[sessionIndex] + "/info.txt");
+                List<string> sessionInfo = new List<string>();
+                string line;
+                while ((line = sr.ReadLine()) != null)
+                {
+                    sessionInfo.Add(line);
+                }
+                double newBPM = Convert.ToDouble(sessionInfo[0]);
+                for (int i = 1; i < sessionInfo.Count;i++)
+                {
+                    //create looper
+
+                    string loopName = sessionInfo[i].Substring(0, sessionInfo[i].IndexOf("::"));
+                    double loopBPM = Convert.ToDouble(sessionInfo[i].Substring(sessionInfo[i].IndexOf("::") + 2,sessionInfo[i].IndexOf(";;") - (sessionInfo[i].IndexOf("::") + 2)));
+                    double loopMeasures = Convert.ToDouble(sessionInfo[i].Substring(sessionInfo[i].IndexOf(";;") + 2));
+                    Looper newLooper = Instantiate(looperPrefab, backgroundPanel).GetComponent<Looper>();
+                    newLooper.trackName = loopName;
+                    newLooper.recordedBPM = loopBPM;
+                    newLooper.numberOfMeasures = loopMeasures;
+                    newLooper.SetTrackName();
+                    loopers.Add(newLooper);
+                }
+                string[] files = Directory.GetFiles(dir[sessionIndex],"*wav");
+                for (int i = 0; i < files.Length;i++)
+                {
+
+                    StartCoroutine(LoadAudio(files[i], i));
+                    
+                    
+                }
+                ChangeBPM(newBPM);
+
+            }
+            DisableLoadSessionMenu();
+
+        }
+        catch (Exception e)
+        {
+            Debug.Log(e.Message);
+        }
+    }
+
+
+
+    private IEnumerator LoadAudio(string url, int looperIndex)
+    {
+        using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.WAV))
+        {
+            yield return www.SendWebRequest();
+
+
+            AudioClip myClip = DownloadHandlerAudioClip.GetContent(www);
+            if (myClip == null)
+            {
+                Debug.Log("Failed to load clip");
+            }
+            else
+            {
+                myClip.name = loopers[looperIndex].trackName;
+                loopers[looperIndex].SetAudioClip(myClip);
+            }
+            
+        }
+    }
+
+
+
+    public void DisableLoadSessionMenu()
+    {
+        loadSessionMenu.SetActive(false);
+    }
 }

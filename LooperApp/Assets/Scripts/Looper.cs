@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class Looper : MonoBehaviour
 {
     public Slider progressBar;
     public Image looperBackgroundImage;
     public Image bpmWarningImage;
+    public TMP_InputField trackNameInputField;
     public Button playButton;
 
     public AudioSource audioSource0;
@@ -23,16 +25,18 @@ public class Looper : MonoBehaviour
     double firstClipStartTime = 0f;
     double secondClipStartTime = 0f;
     bool bIsRecording = false;
-    bool bHasClip = false;
+    public bool bHasClip = false;
     bool bPaused = true;
     int clipIndex = 0;
     bool bScheduledFirstClip = true;
     bool bScheduledSecondClip = false;
-    double numberOfMeasures = 0;
-    double recordedBPM = 120;
+    public double numberOfMeasures = 0;
+    public double recordedBPM = 120;
 
     Coroutine switchCoroutine0;
     Coroutine switchCoroutine1;
+
+    public string trackName = "testname";
 
     // Start is called before the first frame update
     void Start()
@@ -391,5 +395,26 @@ public class Looper : MonoBehaviour
         ClearLoop();
         Station.instance.loopers.Remove(this);
         Destroy(gameObject);
+    }
+
+    public void SetTrackName()
+    {
+        if (!string.IsNullOrWhiteSpace(trackNameInputField.text))
+        {
+            trackName = trackNameInputField.text;
+        }
+        else
+        {
+            trackNameInputField.text = trackName;
+        }
+    }
+
+    public void SetAudioClip(AudioClip clip)
+    {
+        audioSource0.clip = clip;
+        audioSource1.clip = clip;
+        bHasClip = true;
+        playButton.enabled = true;
+        Debug.Log("Got new clip");
     }
 }
