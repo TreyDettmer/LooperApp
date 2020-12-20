@@ -41,9 +41,6 @@ public static class SavWav
 			filepath += ".wav";
 		}
 
-		
-
-		Debug.Log(filepath);
 
 		// Make sure directory exists if user is saving to sub dir.
 		Directory.CreateDirectory(Path.GetDirectoryName(filepath));
@@ -59,7 +56,8 @@ public static class SavWav
 		return true; // TODO: return false if there's a failure saving the file
 	}
 
-	public static AudioClip TrimSilence(AudioClip clip, float min)
+    [Obsolete]
+    public static AudioClip TrimSilence(AudioClip clip, float min)
 	{
 		var samples = new float[clip.samples];
 
@@ -68,12 +66,14 @@ public static class SavWav
 		return TrimSilence(new List<float>(samples), min, clip.channels, clip.frequency);
 	}
 
-	public static AudioClip TrimSilence(List<float> samples, float min, int channels, int hz)
+    [Obsolete]
+    public static AudioClip TrimSilence(List<float> samples, float min, int channels, int hz)
 	{
 		return TrimSilence(samples, min, channels, hz, false, false);
 	}
 
-	public static AudioClip TrimSilence(List<float> samples, float min, int channels, int hz, bool _3D, bool stream)
+    [Obsolete]
+    public static AudioClip TrimSilence(List<float> samples, float min, int channels, int hz, bool _3D, bool stream)
 	{
 		int i;
 
@@ -168,7 +168,6 @@ public static class SavWav
 		Byte[] subChunk1 = BitConverter.GetBytes(16);
 		fileStream.Write(subChunk1, 0, 4);
 
-		UInt16 two = 2;
 		UInt16 one = 1;
 
 		Byte[] audioFormat = BitConverter.GetBytes(one);

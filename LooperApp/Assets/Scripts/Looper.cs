@@ -8,9 +8,10 @@ public class Looper : MonoBehaviour
 {
     public Slider progressBar;
     public Image looperBackgroundImage;
-    public Image bpmWarningImage;
+    public GameObject bpmWarningObject;
     public TMP_InputField trackNameInputField;
     public Button playButton;
+    public TextMeshProUGUI recordButtonText;
 
     public AudioSource audioSource0;
     public AudioSource audioSource1;
@@ -24,17 +25,19 @@ public class Looper : MonoBehaviour
 
     double firstClipStartTime = 0f;
     double secondClipStartTime = 0f;
-    bool bIsRecording = false;
+    public bool bIsRecording = false;
     public bool bHasClip = false;
-    bool bPaused = true;
+    public bool bPaused = true;
     int clipIndex = 0;
     bool bScheduledFirstClip = true;
     bool bScheduledSecondClip = false;
     public double numberOfMeasures = 0;
     public double recordedBPM = 120;
+    public bool bIsPlaying = false;
 
     Coroutine switchCoroutine0;
     Coroutine switchCoroutine1;
+
 
     public string trackName = "testname";
 
@@ -49,7 +52,7 @@ public class Looper : MonoBehaviour
             return;
         }
         playButton.enabled = false;
-        bpmWarningImage.enabled = false;
+        bpmWarningObject.SetActive(false);
     }
 
 
@@ -64,6 +67,7 @@ public class Looper : MonoBehaviour
                 bIsRecording = false;
                 return; 
             }
+            recordButtonText.text = "Stop";
             recordedBPM = Station.instance.bpm;
             Station.instance.bRecordingALoop = true;
             audioSource0.Stop();
@@ -97,8 +101,9 @@ public class Looper : MonoBehaviour
         {
             
             looperBackgroundImage.color = new Color(173f/255f, 173f/255f, 173f/255f, 222f/255f);
+            recordButtonText.text = "Record";
             if (audioSource0.clip == null) { return; }
-            double t0 = AudioSettings.dspTime;
+
             //stop recording and store recorded data into audio clip
             int uncutLength = Microphone.GetPosition(null);
             
@@ -106,16 +111,15 @@ public class Looper : MonoBehaviour
             float[] uncutClipData = new float[uncutLength];
             audioSource0.clip.GetData(uncutClipData, 0);
             double endTime = AudioSettings.dspTime;
-            //Debug.Log($"Uncut samples: {uncutLength} Uncut Time: {uncutLength / frequency} seconds");
+
             if (recordingFirstBeatTime - recordingStartTime < 0)
             {
                 Debug.LogError("Recording somehow started after the downbeat.");
             }
             double beginningTimeToDiscard = recordingFirstBeatTime - recordingStartTime;
-            //Debug.Log($"Beginning Time to discard: {(beginningTimeToDiscard).ToString("F4")} seconds");
+
             int beginningSamplesToDiscard = Mathf.RoundToInt((float)(frequency * beginningTimeToDiscard));
-            //Debug.Log($"Beginning Samples to discard: {beginningSamplesToDiscard} Beginning Time to discard: {(beginningTimeToDiscard).ToString("F4")} seconds");
-            //Debug.Log($"PreviousDownBeatTime: {Station.instance.previousDownBeatTime} EndTime: {endTime}");
+
             double endTimeToDiscard;
             if (Station.instance.recordingCountOut == 1)
             {
@@ -131,20 +135,18 @@ public class Looper : MonoBehaviour
             }
             if (endTimeToDiscard < 0)
             {
-                Debug.LogWarning("Failed to create clip: Did not record long enough.");
+                Station.instance.ShowErrorMessage("Failed to create clip: Did not record long enough.");
                 Station.instance.bRecordingALoop = false;
+                looperBackgroundImage.color = new Color(173f / 255f, 173f / 255f, 173f / 255f, 180f / 255f);
                 return;
             }
             int endSamplesToDiscard = Mathf.Max(0,Mathf.RoundToInt((float)(frequency * endTimeToDiscard)) - 400);
-            //Debug.Log($"CurrentTime: {AudioSettings.dspTime} PreviousDownBeatTime: {Station.instance.previousDownBeatTime}");
-            //Debug.Log($"End samples to discard: {endSamplesToDiscard}  End Time to discard: {(endTimeToDiscard).ToString("F4")} seconds");
-
-            double t1 = AudioSettings.dspTime;
-            //Debug.Log($"UncutLength: {uncutLength} BeginningSamplesToDiscard: {beginningSamplesToDiscard} EndSamplesToDiscard: {endSamplesToDiscard}");
+;
             int clipLength = uncutLength - beginningSamplesToDiscard - endSamplesToDiscard;
             if (clipLength <= 0)
             {
-                Debug.LogWarning("Failed to create clip: clip length is less than or equal to zero.");
+                Station.instance.ShowErrorMessage("Failed to create clip: clip length is less than or equal to zero.");
+                looperBackgroundImage.color = new Color(173f / 255f, 173f / 255f, 173f / 255f, 180f / 255f);
                 Debug.Log($"SAMPLES: Uncutlength {uncutLength}" +
                     $" beginningSamplesToDiscard {beginningSamplesToDiscard} endSamplesToDiscard {endSamplesToDiscard} " +
                     $"CurrentTime {AudioSettings.dspTime} PreviousDownBeatTime {Station.instance.previousDownBeatTime}");
@@ -161,25 +163,18 @@ public class Looper : MonoBehaviour
                     clipData[i] = uncutClipData[beginningSamplesToDiscard + i];
                 }
             }
-            double t2 = AudioSettings.dspTime;
             
             audioSource0.clip = AudioClip.Create("clip0", clipData.Length, 1, frequency, false);
             audioSource0.clip.SetData(clipData, 0);
             audioSource1.clip = AudioClip.Create("clip1", clipData.Length, 1, frequency, false);
             audioSource1.clip.SetData(clipData, 0);
-            //audioSource.PlayScheduled(Station.instance.nextDownBeatTime);
-            //audioSource.PlayScheduled()
-            numberOfMeasures = Mathf.Ceil((float)((clipData.Length / frequency) / Station.instance.timeBetweenDownBeats));
-            Debug.Log($"NumberOfMeasures: {numberOfMeasures}");
-            for (int i = 1; i <= 16; i++)
-            {
 
-            }
-            double t3 = AudioSettings.dspTime;
-            //Debug.Log($"t0:{t0.ToString("F4")} t1:{t1.ToString("F4")} t2:{t2.ToString("F4")} t3:{t3.ToString("F4")}");
+            numberOfMeasures = Mathf.Ceil((float)((clipData.Length / frequency) / Station.instance.timeBetweenDownBeats));
+            
             bHasClip = true;
             Station.instance.bRecordingALoop = false;
             playButton.enabled = true;
+            looperBackgroundImage.color = new Color(173f / 255f, 173f / 255f, 173f / 255f, 222f / 255f);
         }
     }
 
@@ -195,19 +190,24 @@ public class Looper : MonoBehaviour
         {
             if (bPaused)
             {
-                bPaused = false;
-                clipIndex = 0;
-                if (switchCoroutine0 != null)
+                //make sure that we have at least 0.6 seconds to prepare to play
+                if (Station.instance.nextDownBeatTime - AudioSettings.dspTime >= .6)
                 {
-                    StopCoroutine(switchCoroutine0);
+                    bIsPlaying = true;
+                    bPaused = false;
+                    clipIndex = 0;
+                    if (switchCoroutine0 != null)
+                    {
+                        StopCoroutine(switchCoroutine0);
+                    }
+                    if (switchCoroutine1 != null)
+                    {
+                        StopCoroutine(switchCoroutine1);
+                    }
+                    audioSource0.PlayScheduled(Station.instance.nextDownBeatTime - playbackBuffer);
+                    firstClipStartTime = Station.instance.nextDownBeatTime - playbackBuffer;
+                    StartCoroutine(PlaybackLoop());
                 }
-                if (switchCoroutine1 != null)
-                {
-                    StopCoroutine(switchCoroutine1);
-                }
-                audioSource0.PlayScheduled(Station.instance.nextDownBeatTime - playbackBuffer);
-                firstClipStartTime = Station.instance.nextDownBeatTime - playbackBuffer;
-                StartCoroutine(PlaybackLoop());
             }
             else
             {
@@ -216,6 +216,8 @@ public class Looper : MonoBehaviour
         }
 
     }
+
+
 
     void Pause()
     {
@@ -228,8 +230,17 @@ public class Looper : MonoBehaviour
         {
             StopCoroutine(switchCoroutine1);
         }
-        audioSource0.Stop();
-        audioSource1.Stop();
+        if (clipIndex == 0)
+        {
+            audioSource0.SetScheduledEndTime(Station.instance.nextDownBeatTime);
+            audioSource1.Stop();
+        }
+        else
+        {
+            audioSource1.SetScheduledEndTime(Station.instance.nextDownBeatTime);
+            audioSource0.Stop();
+        }
+        bIsPlaying = false;
         bScheduledFirstClip = false;
         bScheduledSecondClip = false;
         
@@ -293,17 +304,7 @@ public class Looper : MonoBehaviour
             yield return null;
         }
     }
-    //IEnumerator PlaybackStartDelay()
-    //{
-    //    yield return new WaitUntil(() => AudioSettings.dspTime - Station.instance.previousDownBeatTime <= .05f);
 
-    //    //int samplesToSkipOver = Mathf.RoundToInt(frequency * (AudioSettings.dspTime - Station.instance.previousDownBeatTime));
-    //    //audioSource.clip.
-    //    //if (bHasClip && !audioSource.isPlaying)
-    //    //{
-    //    //    audioSource.Play();
-    //    //}
-    //}
 
 
 
@@ -356,6 +357,9 @@ public class Looper : MonoBehaviour
             clipIndex = 1 - clipIndex;
         }
     }
+
+
+
     public void ClearLoop()
     {
         bHasClip = false;
@@ -371,22 +375,23 @@ public class Looper : MonoBehaviour
         {
             StopCoroutine(switchCoroutine1);
         }
+        looperBackgroundImage.color = new Color(173f / 255f, 173f / 255f, 173f / 255f, 180f / 255f);
         bScheduledFirstClip = false;
         bScheduledSecondClip = false;
         audioSource0.clip = null;
         audioSource1.clip = null;
-        bpmWarningImage.enabled = false;
+        bpmWarningObject.SetActive(false);
     }
 
     public void UpdatedBPM()
     {
         if (Station.instance.bpm != recordedBPM && bHasClip)
         {
-            bpmWarningImage.enabled = true;
+            bpmWarningObject.SetActive(true);           
         }
         else
         {
-            bpmWarningImage.enabled = false;
+            bpmWarningObject.SetActive(false);
         }
     }
 
@@ -405,6 +410,7 @@ public class Looper : MonoBehaviour
         }
         else
         {
+            
             trackNameInputField.text = trackName;
         }
     }
@@ -415,6 +421,6 @@ public class Looper : MonoBehaviour
         audioSource1.clip = clip;
         bHasClip = true;
         playButton.enabled = true;
-        Debug.Log("Got new clip");
+        looperBackgroundImage.color = new Color(173f / 255f, 173f / 255f, 173f / 255f, 222f / 255f);
     }
 }

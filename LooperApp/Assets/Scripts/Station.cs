@@ -49,6 +49,7 @@ public class Station : MonoBehaviour
     public int beatCount = 0;
 
     public bool bRecordingALoop = false;
+    
 
     public double timeBetweenDownBeats;
 
@@ -68,8 +69,10 @@ public class Station : MonoBehaviour
     public GameObject loadSessionMenu;
     public RectTransform savedFolderContent;
     public GameObject savedSessionPrefab;
+    public TextMeshProUGUI sessionTitle;
+    public TextMeshProUGUI errorMessage;
 
-    
+    Coroutine errorMessageRoutineObject;
 
     /// <summary>
     /// Initialize singleton
@@ -85,6 +88,7 @@ public class Station : MonoBehaviour
         {
             Destroy(this);
         }
+        
     }
 
     void Start()
@@ -177,11 +181,13 @@ public class Station : MonoBehaviour
             }
             else
             {
+                ShowErrorMessage("Invalid BPM input. (must be between 40 and 150)");
                 bpmInputField.text = currentBPM;
             }
         }
         else
         {
+            ShowErrorMessage("Invalid BPM input. (must be between 40 and 150)");
             bpmInputField.text = currentBPM;
         }
 
@@ -236,6 +242,8 @@ public class Station : MonoBehaviour
         Invoke("ResetUpBeatTimeBool", (float)(nextUpBeatTime + .1 - AudioSettings.dspTime));
     }
 
+
+
     public void ResetDownBeatTimeBool()
     {
         previousDownBeatTime = nextDownBeatTime;
@@ -289,6 +297,10 @@ public class Station : MonoBehaviour
             newLooper.SetTrackName();
             loopers.Add(newLooper);
         }
+        else
+        {
+            ShowErrorMessage("Maximum number of loopers has been reached.");
+        }
     }
 
 
@@ -297,7 +309,23 @@ public class Station : MonoBehaviour
 
         //create save folder
         if (loopers.Count == 0 || bRecordingALoop) { return; }
-        string date = $"{DateTime.Now.Month}_{DateTime.Now.Day}_{DateTime.Now.Year}_{DateTime.Now.Hour},{DateTime.Now.Minute},{DateTime.Now.Second}";
+        foreach (Looper looper in loopers)
+        {
+            if (looper.bIsPlaying) {
+                ShowErrorMessage("Cannot save session when a looper is playing.");
+                return; 
+            }
+        }
+        string date;
+        if (!string.IsNullOrWhiteSpace(sessionTitle.text))
+        {
+            date = $"{sessionTitle.text}_{DateTime.Now.Hour}_{DateTime.Now.Minute}_{DateTime.Now.Second}";
+        }
+        else
+        {
+            date = $"session_{DateTime.Now.Hour}_{DateTime.Now.Minute}_{DateTime.Now.Second}";
+        }
+        
         string savedLoopsFolderPath = Application.persistentDataPath + "/SavedLoops";
         //create the saved loops folder if it does not exist
         if (!File.Exists(savedLoopsFolderPath))
@@ -336,6 +364,7 @@ public class Station : MonoBehaviour
             }
             
         }
+        ShowErrorMessage("Saved Session as: " + date);
         
         
 
@@ -345,10 +374,20 @@ public class Station : MonoBehaviour
     public void LoadData()
     {
         DisableLoadSessionMenu();
+        foreach (Looper looper in loopers)
+        {
+            if (looper.bIsPlaying) {
+                ShowErrorMessage("Cannot load session when a looper is playing.");
+                return; 
+            }
+        }
         string savedLoopsFolderPath = Application.persistentDataPath + "/SavedLoops";
 
         //return if there are no saved files
-        if (!Directory.Exists(savedLoopsFolderPath)) { return; }
+        if (!Directory.Exists(savedLoopsFolderPath)) {
+            ShowErrorMessage("There is not a saved loops folder to access.");
+            return; 
+        }
         RefreshSavedFolderContent();
         loadSessionMenu.SetActive(true);
 
@@ -364,6 +403,9 @@ public class Station : MonoBehaviour
         loadSessionMenu.SetActive(true);
         try
         {
+            GameObject backOption = Instantiate(savedSessionPrefab, savedFolderContent);
+            backOption.GetComponentInChildren<TextMeshProUGUI>().text = "Back";
+            backOption.GetComponent<Button>().onClick.AddListener(DisableLoadSessionMenu);
             string[] dir = Directory.GetDirectories(savedLoopsFolderPath);
             for (int i = 0; i < dir.Length; i++)
             {
@@ -372,11 +414,14 @@ public class Station : MonoBehaviour
                 int value = i;
                 savedSession.GetComponent<Button>().onClick.AddListener(delegate { LoadPreviousSession(value); });
             }
+            GameObject refreshOption = Instantiate(savedSessionPrefab, savedFolderContent);
+            refreshOption.GetComponentInChildren<TextMeshProUGUI>().text = "Refresh";
+            refreshOption.GetComponent<Button>().onClick.AddListener(RefreshSavedFolderContent);
 
         }
         catch (Exception e)
         {
-            Debug.Log(e.Message);
+            ShowErrorMessage("Exception: " + e.Message);
         }
     }
 
@@ -385,6 +430,7 @@ public class Station : MonoBehaviour
         string savedLoopsFolderPath = Application.persistentDataPath + "/SavedLoops";
         if (!Directory.Exists(savedLoopsFolderPath)) {
             DisableLoadSessionMenu();
+            ShowErrorMessage("No saved loops available");
             return; 
         }
         try
@@ -440,9 +486,12 @@ public class Station : MonoBehaviour
         }
         catch (Exception e)
         {
-            Debug.Log(e.Message);
+            ShowErrorMessage("Exception: " + e.Message);
+            
         }
     }
+
+
 
 
 
@@ -456,7 +505,8 @@ public class Station : MonoBehaviour
             AudioClip myClip = DownloadHandlerAudioClip.GetContent(www);
             if (myClip == null)
             {
-                Debug.Log("Failed to load clip");
+                ShowErrorMessage("Failed to load clip");
+                
             }
             else
             {
@@ -472,5 +522,51 @@ public class Station : MonoBehaviour
     public void DisableLoadSessionMenu()
     {
         loadSessionMenu.SetActive(false);
+    }
+
+    public void ShowErrorMessage(string message)
+    {
+        
+        errorMessage.text = message;
+        errorMessage.gameObject.SetActive(true);
+        if (errorMessageRoutineObject != null)
+        {
+            StopCoroutine(errorMessageRoutineObject);
+        }
+        errorMessageRoutineObject = StartCoroutine(ErrorMessageRoutine());
+        
+    }
+
+    IEnumerator ErrorMessageRoutine()
+    {
+        yield return new WaitForSeconds(4);
+        errorMessage.gameObject.SetActive(false);
+    }
+
+    public void Quit()
+    {
+        Application.Quit();
+    }
+
+    public void PlayAllLoopers()
+    {
+        foreach (Looper looper in loopers)
+        {
+            if (looper.bHasClip && looper.bPaused)
+            {
+                looper.Playback();
+            }
+        }
+    }
+
+    public void StopAllLoopers()
+    {
+        foreach (Looper looper in loopers)
+        {
+            if (looper.bHasClip && !looper.bPaused)
+            {
+                looper.Playback();
+            }
+        }
     }
 }
