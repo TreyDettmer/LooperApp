@@ -789,7 +789,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -801, y: 387}
+  m_AnchoredPosition: {x: -801, y: 375}
   m_SizeDelta: {x: 300, y: 75}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &261625945
@@ -2169,7 +2169,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 387}
+  m_AnchoredPosition: {x: 0, y: 375.00003}
   m_SizeDelta: {x: 700, y: 75}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &882178490
@@ -2427,11 +2427,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bpm: 120
-  gain: 0.5
   signatureHi: 4
   signatureLo: 4
-  nextTick: 0
-  accent: 0
   startTick: 0
   nextDownBeatTime: 0
   nextUpBeatTime: 0
@@ -2447,7 +2444,6 @@ MonoBehaviour:
   looperPrefab: {fileID: 6234578168238275442, guid: 889a6bb9c46856c41aff1ed385409fee,
     type: 3}
   backgroundPanel: {fileID: 108606460}
-  beatCount: 0
   bRecordingALoop: 0
   timeBetweenDownBeats: 0
   recordingCountIn: 1

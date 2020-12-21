@@ -13,31 +13,26 @@ public class Station : MonoBehaviour
     public static Station instance;
 
 
-    [HideInInspector]
+    
     public double bpm = 140.0F;
-    [HideInInspector]
-    public float gain = 0.5F;
-    [HideInInspector]
+    
     public int signatureHi = 4;
-    [HideInInspector]
+    
     public int signatureLo = 4;
-    [HideInInspector]
-    public double nextTick = 0.0F;
-    private double sampleRate = 0.0F;
-    [HideInInspector]
-    public int accent;
+    
+    
     private bool running = false;
-    [HideInInspector]
+    
     public double startTick;
     public double nextDownBeatTime;
-    [HideInInspector]
+    
     public double nextUpBeatTime;
     public double currentDownBeatTime;
     public double currentTime;
     public double previousDownBeatTime;
-    [HideInInspector]
+    
     public double currentUpBeatTime;
-    [HideInInspector]
+    
     public double previousUpBeatTime;
 
     public AudioSource metronomeLow;
@@ -46,7 +41,7 @@ public class Station : MonoBehaviour
     public TextMeshProUGUI countOutButtonText;
     public GameObject looperPrefab;
     public Transform backgroundPanel;
-    public int beatCount = 0;
+
 
     public bool bRecordingALoop = false;
     
@@ -58,7 +53,7 @@ public class Station : MonoBehaviour
 
 
     public TMP_InputField bpmInputField;
-    [HideInInspector]
+    
     public bool bUseMetronome = true;
 
     bool bScheduledNextDownBeatTime = false;
@@ -93,22 +88,10 @@ public class Station : MonoBehaviour
 
     void Start()
     {
-        //initialize metronome values
-        accent = signatureHi;
-        double startTick = AudioSettings.dspTime;
-        sampleRate = AudioSettings.outputSampleRate;
-        nextTick = startTick * sampleRate;
         nextDownBeatTime = AudioSettings.dspTime + 2;
         nextUpBeatTime = nextDownBeatTime;
         timeBetweenDownBeats = (60 * signatureHi) / bpm;
-        Looper[] loopersToAdd = FindObjectsOfType<Looper>();
-        foreach(Looper looper in loopersToAdd)
-        {
-            if (!loopers.Contains(looper))
-            {
-                loopers.Add(looper);
-            }
-        }
+
         running = true;
         loadSessionMenu.SetActive(false);
     }
@@ -119,46 +102,23 @@ public class Station : MonoBehaviour
         {
             return;
         }
-        currentTime = AudioSettings.dspTime;
-        double time = AudioSettings.dspTime;
+
         if (!bScheduledNextDownBeatTime)
         {
             ScheduleNextDownBeatTime();
         }
-        //if (time + .3f > nextDownBeatTime)
-        //{
-        //    if (bUseMetronome)
-        //    {
-        //        metronomeLow.PlayScheduled(nextDownBeatTime);
-        //    }
-        //    previousDownBeatTime = currentDownBeatTime;
-        //    currentDownBeatTime = nextDownBeatTime;
-        //    nextDownBeatTime += 60.0f / bpm * signatureHi;
 
-        //}
         if (!bScheduledNextUpBeatTime)
         {
             ScheduleNextUpBeatTime();
         }
 
-        //if (time + .1f > nextUpBeatTime)
-        //{
 
-
-        //    if (beatCount % 4 != 0)
-        //    {
-        //        if (bUseMetronome)
-        //        {
-        //            metronomeHigh.PlayScheduled(nextUpBeatTime);
-        //        }
-        //    }
-        //    previousUpBeatTime = currentUpBeatTime;
-        //    currentUpBeatTime = nextUpBeatTime;
-        //    nextUpBeatTime += 60.0f / (bpm * 4) * signatureHi;
-            
-        //}
     }
 
+    /// <summary>
+    /// Checks if the user entered a valid bpm then updates the bpm
+    /// </summary>
     public void ChangeBPM()
     {
         string currentBPM = ((int)bpm).ToString();
@@ -167,13 +127,14 @@ public class Station : MonoBehaviour
         int.TryParse(bpmInputField.text,System.Globalization.NumberStyles.Integer,null, out tempBPM);
         if (tempBPM > 0)
         {
+            //bpm must be between 40 and 150
             if (tempBPM >= 40 && tempBPM <= 150)
             {
                 bpm = tempBPM;
                 timeBetweenDownBeats = (60 * signatureHi) / bpm;
                 nextDownBeatTime = AudioSettings.dspTime + 2.0f;
                 nextUpBeatTime = nextDownBeatTime;
-                beatCount = 0;
+
                 foreach (Looper looper in loopers)
                 {
                     looper.UpdatedBPM();
@@ -193,6 +154,10 @@ public class Station : MonoBehaviour
 
     }
 
+    /// <summary>
+    /// Changes the bpm to the loaded session's bpm
+    /// </summary>
+    /// <param name="newBPM">the new bpm to use</param>
     public void ChangeBPM(double newBPM)
     {
         if (newBPM != bpm)
@@ -201,7 +166,7 @@ public class Station : MonoBehaviour
             timeBetweenDownBeats = (60 * signatureHi) / bpm;
             nextDownBeatTime = AudioSettings.dspTime + 2.0f;
             nextUpBeatTime = nextDownBeatTime;
-            beatCount = 0;
+
             foreach (Looper looper in loopers)
             {
                 looper.UpdatedBPM();
@@ -210,11 +175,17 @@ public class Station : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// enables or disables the metronome sound
+    /// </summary>
     public void SetMetronome()
     {
         bUseMetronome = !bUseMetronome;
     }
 
+    /// <summary>
+    /// Schedules the next down beat
+    /// </summary>
     public void ScheduleNextDownBeatTime()
     {
         bScheduledNextDownBeatTime = true;
@@ -222,36 +193,39 @@ public class Station : MonoBehaviour
         {
             metronomeHigh.PlayScheduled(nextDownBeatTime);
         }
-        //Debug.Log("Scheduled");
+
         Invoke("ResetDownBeatTimeBool",(float)(nextDownBeatTime + .1 - AudioSettings.dspTime));
     }
 
+    /// <summary>
+    /// Schedules the next up beat
+    /// </summary>
     public void ScheduleNextUpBeatTime()
     {
         
         bScheduledNextUpBeatTime = true;
-        
-
         if (bUseMetronome)
         {
             metronomeLow.PlayScheduled(nextUpBeatTime);
         }
-        
-        //beatCount++;
-        
+              
         Invoke("ResetUpBeatTimeBool", (float)(nextUpBeatTime + .1 - AudioSettings.dspTime));
     }
 
 
-
+    /// <summary>
+    /// Updates the time of the next down beat
+    /// </summary>
     public void ResetDownBeatTimeBool()
     {
         previousDownBeatTime = nextDownBeatTime;
         nextDownBeatTime += 60.0f / bpm * signatureHi;
         bScheduledNextDownBeatTime = false;
-        //Debug.Log("Reset");
     }
 
+    /// <summary>
+    /// Update the time of the next up beat
+    /// </summary>
     public void ResetUpBeatTimeBool()
     {
         
@@ -260,6 +234,9 @@ public class Station : MonoBehaviour
         bScheduledNextUpBeatTime = false;
     }
 
+    /// <summary>
+    /// Updates the countIn measure count
+    /// </summary>
     public void PressedCountInButton()
     {
         if (bRecordingALoop) { return; }
@@ -274,6 +251,9 @@ public class Station : MonoBehaviour
         countInButtonText.text = recordingCountIn.ToString();
     }
 
+    /// <summary>
+    /// updates the countOut measure count
+    /// </summary>
     public void PressedCountOutButton()
     {
         if (bRecordingALoop) { return; }
@@ -288,13 +268,16 @@ public class Station : MonoBehaviour
         countOutButtonText.text = recordingCountOut.ToString();
     }
 
+    /// <summary>
+    /// Adds a looper to the session
+    /// </summary>
     public void AddLooper()
     {
         if (loopers.Count < 5)
         {
             Looper newLooper = Instantiate(looperPrefab, backgroundPanel).GetComponent<Looper>();
-            newLooper.trackName = "LooperTrack0" + (loopers.Count + 1).ToString();
-            newLooper.SetTrackName();
+            newLooper.looperName = "Looper0" + (loopers.Count + 1).ToString();
+            newLooper.SetLooperName();
             loopers.Add(newLooper);
         }
         else
@@ -304,10 +287,13 @@ public class Station : MonoBehaviour
     }
 
 
+    /// <summary>
+    /// Saves the current session
+    /// </summary>
     public void SaveData()
     {
 
-        //create save folder
+        //check if we can save
         if (loopers.Count == 0 || bRecordingALoop) { return; }
         foreach (Looper looper in loopers)
         {
@@ -316,6 +302,7 @@ public class Station : MonoBehaviour
                 return; 
             }
         }
+        //create save file name
         string date;
         if (!string.IsNullOrWhiteSpace(sessionTitle.text))
         {
@@ -349,17 +336,19 @@ public class Station : MonoBehaviour
         {
             if (loopers[i].bHasClip)
             {
-                string looperInfo = loopers[i].trackName + "::" + ((int)loopers[i].recordedBPM).ToString() + ";;" + ((int)loopers[i].numberOfMeasures).ToString() + "\n";
+                //write looper info
+                string looperInfo = loopers[i].looperName + "::" + ((int)loopers[i].recordedBPM).ToString() + ";;" + ((int)loopers[i].numberOfMeasures).ToString() + "\n";
                 File.AppendAllText(infoFilePath, looperInfo);
             }
         }
 
+        //convert each looper's clip to a WAV file in case user wants to export loop
         for (int i = 0; i < loopers.Count; i++)
         {
             if (loopers[i].bHasClip)
             {
                 AudioClip clip = loopers[i].GetComponent<AudioSource>().clip;
-                string path = saveFolderPath + "/" + loopers[i].trackName + ".wav";
+                string path = saveFolderPath + "/" + loopers[i].looperName + ".wav";
                 SavWav.Save(path, clip);
             }
             
@@ -370,10 +359,13 @@ public class Station : MonoBehaviour
 
     }
 
-
+    /// <summary>
+    /// Loads a saved session
+    /// </summary>
     public void LoadData()
     {
         DisableLoadSessionMenu();
+        //check if we can load a seesion
         foreach (Looper looper in loopers)
         {
             if (looper.bIsPlaying) {
@@ -381,9 +373,8 @@ public class Station : MonoBehaviour
                 return; 
             }
         }
-        string savedLoopsFolderPath = Application.persistentDataPath + "/SavedLoops";
-
         //return if there are no saved files
+        string savedLoopsFolderPath = Application.persistentDataPath + "/SavedLoops";      
         if (!Directory.Exists(savedLoopsFolderPath)) {
             ShowErrorMessage("There is not a saved loops folder to access.");
             return; 
@@ -393,8 +384,12 @@ public class Station : MonoBehaviour
 
     }
 
+    /// <summary>
+    /// Updates the list of possible saved sessions to load
+    /// </summary>
     public void RefreshSavedFolderContent()
     {
+        //first, delete the currently displayed list of saved sessions
         string savedLoopsFolderPath = Application.persistentDataPath + "/SavedLoops";
         foreach (Transform child in savedFolderContent)
         {
@@ -403,9 +398,12 @@ public class Station : MonoBehaviour
         loadSessionMenu.SetActive(true);
         try
         {
+            //add option for user to back out of loading a saved session
             GameObject backOption = Instantiate(savedSessionPrefab, savedFolderContent);
             backOption.GetComponentInChildren<TextMeshProUGUI>().text = "Back";
             backOption.GetComponent<Button>().onClick.AddListener(DisableLoadSessionMenu);
+
+            //find and display each saved session
             string[] dir = Directory.GetDirectories(savedLoopsFolderPath);
             for (int i = 0; i < dir.Length; i++)
             {
@@ -414,6 +412,7 @@ public class Station : MonoBehaviour
                 int value = i;
                 savedSession.GetComponent<Button>().onClick.AddListener(delegate { LoadPreviousSession(value); });
             }
+            //add option for user to refresh the list of saved sessions
             GameObject refreshOption = Instantiate(savedSessionPrefab, savedFolderContent);
             refreshOption.GetComponentInChildren<TextMeshProUGUI>().text = "Refresh";
             refreshOption.GetComponent<Button>().onClick.AddListener(RefreshSavedFolderContent);
@@ -425,6 +424,10 @@ public class Station : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Loads a previous session given the session's index in the list of saved sessions
+    /// </summary>
+    /// <param name="sessionIndex">index of session in the list of saved sessions</param>
     public void LoadPreviousSession(int sessionIndex)
     {
         string savedLoopsFolderPath = Application.persistentDataPath + "/SavedLoops";
@@ -442,12 +445,14 @@ public class Station : MonoBehaviour
                 {
                     return;
                 }
+                //delete all loopers in the current session
                 foreach (Looper looper in loopers)
                 {
                     looper.ClearLoop();
                     Destroy(looper.gameObject);
                 }
                 loopers.Clear();
+                //read the info about the session to load
                 StreamReader sr = new StreamReader(dir[sessionIndex] + "/info.txt");
                 List<string> sessionInfo = new List<string>();
                 string line;
@@ -464,19 +469,18 @@ public class Station : MonoBehaviour
                     double loopBPM = Convert.ToDouble(sessionInfo[i].Substring(sessionInfo[i].IndexOf("::") + 2,sessionInfo[i].IndexOf(";;") - (sessionInfo[i].IndexOf("::") + 2)));
                     double loopMeasures = Convert.ToDouble(sessionInfo[i].Substring(sessionInfo[i].IndexOf(";;") + 2));
                     Looper newLooper = Instantiate(looperPrefab, backgroundPanel).GetComponent<Looper>();
-                    newLooper.trackName = loopName;
+                    newLooper.looperName = loopName;
                     newLooper.recordedBPM = loopBPM;
                     newLooper.numberOfMeasures = loopMeasures;
-                    newLooper.SetTrackName();
+                    newLooper.SetLooperName();
                     loopers.Add(newLooper);
                 }
+                //for each saved clip, convert the WAV file back to an audio clip and apply it to a looper
                 string[] files = Directory.GetFiles(dir[sessionIndex],"*wav");
                 for (int i = 0; i < files.Length;i++)
                 {
-
                     StartCoroutine(LoadAudio(files[i], i));
-                    
-                    
+
                 }
                 ChangeBPM(newBPM);
 
@@ -494,7 +498,12 @@ public class Station : MonoBehaviour
 
 
 
-
+    /// <summary>
+    /// Converts WAV file to audio clip and applies the clip to a looper
+    /// </summary>
+    /// <param name="url">the path to the WAV file</param>
+    /// <param name="looperIndex">the index of the looper to apply the clip to</param>
+    /// <returns></returns>
     private IEnumerator LoadAudio(string url, int looperIndex)
     {
         using (UnityWebRequest www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.WAV))
@@ -505,25 +514,29 @@ public class Station : MonoBehaviour
             AudioClip myClip = DownloadHandlerAudioClip.GetContent(www);
             if (myClip == null)
             {
-                ShowErrorMessage("Failed to load clip");
-                
+                ShowErrorMessage("Failed to load clip");               
             }
             else
             {
-                myClip.name = loopers[looperIndex].trackName;
+                myClip.name = loopers[looperIndex].looperName;
                 loopers[looperIndex].SetAudioClip(myClip);
-            }
-            
+            }         
         }
     }
 
 
-
+    /// <summary>
+    /// Hides the saved sessions menu
+    /// </summary>
     public void DisableLoadSessionMenu()
     {
         loadSessionMenu.SetActive(false);
     }
 
+    /// <summary>
+    /// Displays a message at the bottom of the screen
+    /// </summary>
+    /// <param name="message"></param>
     public void ShowErrorMessage(string message)
     {
         
@@ -536,18 +549,27 @@ public class Station : MonoBehaviour
         errorMessageRoutineObject = StartCoroutine(ErrorMessageRoutine());
         
     }
-
+    /// <summary>
+    /// Hides error message after 4 seconds
+    /// </summary>
+    /// <returns></returns>
     IEnumerator ErrorMessageRoutine()
     {
         yield return new WaitForSeconds(4);
         errorMessage.gameObject.SetActive(false);
     }
 
+    /// <summary>
+    /// Quits the application
+    /// </summary>
     public void Quit()
     {
         Application.Quit();
     }
 
+    /// <summary>
+    /// Plays all paused loopers at the next down beat
+    /// </summary>
     public void PlayAllLoopers()
     {
         foreach (Looper looper in loopers)
@@ -559,6 +581,9 @@ public class Station : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Stops all playing loopers at the next down beat
+    /// </summary>
     public void StopAllLoopers()
     {
         foreach (Looper looper in loopers)
