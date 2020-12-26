@@ -1,5 +1,6 @@
 # LooperApp
 **Digital Loop Station Built In Unity**
+![App Screenshot](ReadMeFiles/AppScreenshot.png)
 ### Acknowledgement
 In this project I use the SavWav.cs script created by GitHub user darktable to convert audio clips to WAV files.
 
