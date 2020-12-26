@@ -14,6 +14,7 @@ public class Looper : MonoBehaviour
     public TMP_InputField looperNameInputField;
     public Button playButton;
     public TextMeshProUGUI recordButtonText;
+    public TextMeshProUGUI looperKey;
 
     public AudioSource audioSource0;
     public AudioSource audioSource1;
@@ -33,6 +34,7 @@ public class Looper : MonoBehaviour
     public bool bHasClip = false;
     public bool bPaused = true;
     public bool bIsPlaying = false;
+    private bool bIsPlayingCoroutine = false;
 
     //the index (0 or 1) of the audiosource that is playing
     int clipIndex = 0;
@@ -44,10 +46,12 @@ public class Looper : MonoBehaviour
     //number of measures recorded
     public double numberOfMeasures = 0;
     public double recordedBPM = 120;
+    public int recordedSignatureHi = 4;
     
     //coroutines used to switch between audiosources
     Coroutine switchCoroutine0;
     Coroutine switchCoroutine1;
+    Coroutine isPlayingCoroutine;
 
 
     
@@ -88,6 +92,7 @@ public class Looper : MonoBehaviour
 
             recordButtonText.text = "Stop";
             recordedBPM = Station.instance.bpm;
+            recordedSignatureHi = Station.instance.signatureHi;
             Station.instance.bRecordingALoop = true;
 
             //stop all recording processes before we start a new recording
@@ -225,8 +230,13 @@ public class Looper : MonoBehaviour
         {
             if (bPaused)
             {
-                //make sure that we have at least 0.6 seconds to prepare to play
-                if (Station.instance.nextDownBeatTime - AudioSettings.dspTime >= .6)
+                if (bIsPlayingCoroutine)
+                {
+                    //return since we are about to be paused
+                    return;
+                }
+                //make sure that we have at least 0.4 seconds to prepare to play
+                if (Station.instance.nextDownBeatTime - AudioSettings.dspTime >= .4)
                 {
                     bIsPlaying = true;
                     bPaused = false;
@@ -269,7 +279,9 @@ public class Looper : MonoBehaviour
         {
             StopCoroutine(switchCoroutine1);
         }
-        //end the currently playing clip at the next down beat
+
+
+        //end the currently playing clip 
         if (clipIndex == 0)
         {
             audioSource0.SetScheduledEndTime(Station.instance.nextDownBeatTime);
@@ -280,7 +292,7 @@ public class Looper : MonoBehaviour
             audioSource1.SetScheduledEndTime(Station.instance.nextDownBeatTime);
             audioSource0.Stop();
         }
-        bIsPlaying = false;
+        isPlayingCoroutine = StartCoroutine(SetIsPlayingRoutine((float)(Station.instance.nextDownBeatTime - AudioSettings.dspTime)));
         bScheduledFirstClip = false;
         bScheduledSecondClip = false;
         
@@ -339,7 +351,13 @@ public class Looper : MonoBehaviour
     }
 
 
-
+    IEnumerator SetIsPlayingRoutine(float timeToWait)
+    {
+        bIsPlayingCoroutine = true;
+        yield return new WaitForSeconds(timeToWait);
+        bIsPlaying = false;
+        bIsPlayingCoroutine = false;
+    }
 
     
 
@@ -420,15 +438,17 @@ public class Looper : MonoBehaviour
         audioSource0.clip = null;
         audioSource1.clip = null;
         bpmWarningObject.SetActive(false);
+        bIsPlaying = false;
     }
 
     /// <summary>
-    /// Checks if looper bpm matches the station bpm. 
+    /// Checks if looper bpm matches the station bpm. Also checks
+    /// if looper high signature matches the station high signature.
     /// If not, display a warning message.
     /// </summary>
     public void UpdatedBPM()
     {
-        if (Station.instance.bpm != recordedBPM && bHasClip)
+        if ((Station.instance.bpm != recordedBPM && bHasClip) || (Station.instance.signatureHi != recordedSignatureHi && bHasClip))
         {
             bpmWarningObject.SetActive(true);           
         }
@@ -445,6 +465,7 @@ public class Looper : MonoBehaviour
     {
         ClearLoop();
         Station.instance.loopers.Remove(this);
+        Station.instance.UpdateLooperKeys();
         Destroy(gameObject);
     }
 

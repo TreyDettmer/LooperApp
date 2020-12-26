@@ -37,6 +37,8 @@ public class Station : MonoBehaviour
 
     public AudioSource metronomeLow;
     public AudioSource metronomeHigh;
+    public Image signature34Image;
+    public Image signature44Image;
     public TextMeshProUGUI countInButtonText;
     public TextMeshProUGUI countOutButtonText;
     public GameObject looperPrefab;
@@ -94,6 +96,8 @@ public class Station : MonoBehaviour
 
         running = true;
         loadSessionMenu.SetActive(false);
+
+        ShowErrorMessage("Save folder located at: " + Application.persistentDataPath + "/SavedLoops");
     }
 
     private void Update()
@@ -113,6 +117,42 @@ public class Station : MonoBehaviour
             ScheduleNextUpBeatTime();
         }
 
+        if (Input.GetKeyDown(KeyCode.A))
+        {
+            if (backgroundPanel.childCount > 0)
+            {
+                backgroundPanel.GetChild(0).GetComponent<Looper>().Playback();
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.S))
+        {
+            if (backgroundPanel.childCount > 1)
+            {
+                backgroundPanel.GetChild(1).GetComponent<Looper>().Playback();
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.D))
+        {
+            if (backgroundPanel.childCount > 2)
+            {
+                backgroundPanel.GetChild(2).GetComponent<Looper>().Playback();
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            if (backgroundPanel.childCount > 3)
+            {
+                backgroundPanel.GetChild(3).GetComponent<Looper>().Playback();
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.G))
+        {
+            if (backgroundPanel.childCount > 4)
+            {
+                backgroundPanel.GetChild(4).GetComponent<Looper>().Playback();
+            }
+        }
+
 
     }
 
@@ -121,7 +161,17 @@ public class Station : MonoBehaviour
     /// </summary>
     public void ChangeBPM()
     {
+
         string currentBPM = ((int)bpm).ToString();
+        foreach (Looper looper in loopers)
+        {
+            if (looper.bIsPlaying)
+            {
+                ShowErrorMessage("Cannot change bpm when a looper is playing.");
+                bpmInputField.text = currentBPM;
+                return;
+            }
+        }
         int tempBPM;
 
         int.TryParse(bpmInputField.text,System.Globalization.NumberStyles.Integer,null, out tempBPM);
@@ -172,6 +222,44 @@ public class Station : MonoBehaviour
                 looper.UpdatedBPM();
             }
             bpmInputField.text = ((int)bpm).ToString();
+        }
+    }
+
+    /// <summary>
+    /// Changes the time signature
+    /// </summary>
+    /// <param name="newHi">high signature</param>
+    public void ChangeTimeSignature(int newHi)
+    {
+        if (signatureHi != newHi)
+        {
+            foreach (Looper looper in loopers)
+            {
+                if (looper.bIsPlaying)
+                {
+                    ShowErrorMessage("Cannot change time signature when a looper is playing.");
+                    return;
+                }
+            }
+            if (newHi == 3)
+            {
+                signature34Image.color = new Color(.6f, .6f, .6f, 1f);
+                signature44Image.color = new Color(1, 1, 1, 1);
+
+            }
+            else
+            {
+                signature44Image.color = new Color(.6f, .6f, .6f, 1f);
+                signature34Image.color = new Color(1, 1, 1, 1);
+            }
+            signatureHi = newHi;
+            timeBetweenDownBeats = (60 * signatureHi) / bpm;
+            nextDownBeatTime = AudioSettings.dspTime + 2.0f;
+            nextUpBeatTime = nextDownBeatTime;
+            foreach (Looper looper in loopers)
+            {
+                looper.UpdatedBPM();
+            }
         }
     }
 
@@ -230,7 +318,7 @@ public class Station : MonoBehaviour
     {
         
         previousUpBeatTime = nextUpBeatTime;
-        nextUpBeatTime += 60.0f / (bpm * 4) * signatureHi;
+        nextUpBeatTime += 60.0f / (bpm * signatureHi) * signatureHi;
         bScheduledNextUpBeatTime = false;
     }
 
@@ -284,6 +372,7 @@ public class Station : MonoBehaviour
         {
             ShowErrorMessage("Maximum number of loopers has been reached.");
         }
+        UpdateLooperKeys();
     }
 
 
@@ -332,12 +421,16 @@ public class Station : MonoBehaviour
             File.WriteAllText(infoFilePath, "");
         }
         File.AppendAllText(infoFilePath, ((int)bpm).ToString() + "\n");
+        File.AppendAllText(infoFilePath, signatureHi.ToString() + "\n");
         for (int i = 0; i < loopers.Count; i++)
         {
             if (loopers[i].bHasClip)
             {
                 //write looper info
-                string looperInfo = loopers[i].looperName + "::" + ((int)loopers[i].recordedBPM).ToString() + ";;" + ((int)loopers[i].numberOfMeasures).ToString() + "\n";
+                string looperInfo = loopers[i].looperName + "::"
+                    + ((int)loopers[i].recordedBPM).ToString() + ";;"
+                    + ((int)loopers[i].numberOfMeasures).ToString() + ",,"
+                    + loopers[i].recordedSignatureHi.ToString() + "\n";
                 File.AppendAllText(infoFilePath, looperInfo);
             }
         }
@@ -461,17 +554,20 @@ public class Station : MonoBehaviour
                     sessionInfo.Add(line);
                 }
                 double newBPM = Convert.ToDouble(sessionInfo[0]);
-                for (int i = 1; i < sessionInfo.Count;i++)
+                int newSigHigh = Convert.ToInt32(sessionInfo[1]);
+                for (int i = 2; i < sessionInfo.Count;i++)
                 {
                     //create looper
 
                     string loopName = sessionInfo[i].Substring(0, sessionInfo[i].IndexOf("::"));
                     double loopBPM = Convert.ToDouble(sessionInfo[i].Substring(sessionInfo[i].IndexOf("::") + 2,sessionInfo[i].IndexOf(";;") - (sessionInfo[i].IndexOf("::") + 2)));
-                    double loopMeasures = Convert.ToDouble(sessionInfo[i].Substring(sessionInfo[i].IndexOf(";;") + 2));
+                    double loopMeasures = Convert.ToDouble(sessionInfo[i].Substring(sessionInfo[i].IndexOf(";;") + 2, sessionInfo[i].IndexOf(",,") - (sessionInfo[i].IndexOf(";;") + 2)));
+                    int loopSigHi = Convert.ToInt32(sessionInfo[i].Substring(sessionInfo[i].IndexOf(",,") + 2));
                     Looper newLooper = Instantiate(looperPrefab, backgroundPanel).GetComponent<Looper>();
                     newLooper.looperName = loopName;
                     newLooper.recordedBPM = loopBPM;
                     newLooper.numberOfMeasures = loopMeasures;
+                    newLooper.recordedSignatureHi = loopSigHi;
                     newLooper.SetLooperName();
                     loopers.Add(newLooper);
                 }
@@ -482,7 +578,9 @@ public class Station : MonoBehaviour
                     StartCoroutine(LoadAudio(files[i], i));
 
                 }
+                ChangeTimeSignature(newSigHigh);
                 ChangeBPM(newBPM);
+                UpdateLooperKeys();
 
             }
             DisableLoadSessionMenu();
@@ -592,6 +690,38 @@ public class Station : MonoBehaviour
             {
                 looper.Playback();
             }
+        }
+    }
+
+    /// <summary>
+    /// Updates the displayed key to press to play/stop each looper
+    /// </summary>
+    public void UpdateLooperKeys()
+    {
+        for (int i = 0; i < loopers.Count;i++)
+        {
+            Looper looper = loopers[i];
+            if (i == 0)
+            {
+                looper.looperKey.text = "A";
+            }
+            else if (i == 1)
+            {
+                looper.looperKey.text = "S";
+            }
+            else if (i == 2)
+            {
+                looper.looperKey.text = "D";
+            }
+            else if (i == 3)
+            {
+                looper.looperKey.text = "F";
+            }
+            else
+            {
+                looper.looperKey.text = "G";
+            }
+
         }
     }
 }
