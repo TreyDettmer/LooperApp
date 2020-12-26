@@ -17,6 +17,9 @@
 ### Acknowledgement
 For this project I used the SavWav.cs script created by GitHub user darktable to convert audio clips to WAV files.
 
+### Getting Started
+Clone this repository onto your computer then run the .exe file located in the LooperApp/Build directory.
+
 ## Motivation 
 As a guitarist, I have always been fascinated by artists like Ed Sheeran who use loop stations to recreate their hit songs live in front of audiences. Unfortunately, loop pedals alone cost way more than I am willing spend. This is what inspired me to attempt and make my own digital loop station.
 ## The Development Process
