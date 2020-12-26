@@ -1,6 +1,16 @@
-# LooperApp
+# Looper App
 **Digital Loop Station Built In Unity**
 ![App Screenshot](ReadMeFiles/AppScreenshot.png)
+## App Features
+- Record loops with precise rhythmic timing
+- Enable/Disable metronome
+- Change measure count in/out for starting and ending loop recording
+- Choose between 4/4 time and 3/4 time
+- Title loops and loop session
+- Simultaneously play/stop all loops
+- Save loop session and load previous loop sessions
+- Loops are saved as WAV files
+
 ### Acknowledgement
 In this project I use the SavWav.cs script created by GitHub user darktable to convert audio clips to WAV files.
 
